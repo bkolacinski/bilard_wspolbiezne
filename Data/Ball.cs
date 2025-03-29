@@ -8,7 +8,7 @@ namespace Data
         public double PositionX { get; set; }
         public double PositionY { get; set; }
         public Vector2 Velocity { get; set; }
-        public double Radius { get; set; }
+        public double BallRadius { get; set; }
         
         public void Move(double deltaTime)
         {

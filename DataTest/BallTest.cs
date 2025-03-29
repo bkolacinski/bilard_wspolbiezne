@@ -39,4 +39,23 @@ public class BallTest
         Assert.AreEqual(4, ball.PositionX, 0.0001);
         Assert.AreEqual(20, ball.PositionY, 0.0001);
     }
+
+    [TestMethod]
+    public void Ball_GettersReturnsCorrectValues()
+    {
+        var Ball = new Ball
+        {
+            Id = 1,
+            PositionX = 123,
+            PositionY = 321,
+            Velocity = new Vector2(1.5f, 2.1f),
+            BallRadius = 2.0
+        };
+        
+        int BallId = Ball.Id;
+        double BallRadius = Ball.BallRadius;
+        
+        Assert.AreEqual(1, BallId, 0.0001);
+        Assert.AreEqual(2.0, BallRadius, 0.0001);
+    }
 }

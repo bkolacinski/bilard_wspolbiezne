@@ -66,7 +66,8 @@ namespace Model
         
         public void Move(double deltaTime)
         {
-            throw new NotImplementedException();
+            PositionX += Velocity.X * deltaTime;
+            PositionY += Velocity.Y * deltaTime;
         }
         
         protected void OnPropertyChanged(string propertyName)

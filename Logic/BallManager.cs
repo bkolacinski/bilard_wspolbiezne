@@ -3,22 +3,25 @@ using Data;
 
 namespace Logic
 {
-    public class BallService : IBallService
+    /// <summary>
+    /// Implementation of IBallManager used in Logic layer.
+    /// </summary>
+    public class BallManager : IBallManager
     {
-        private readonly List<Ball> _balls = new List<Ball>();
+        private readonly List<IBall> _balls = new List<IBall>();
         private readonly Random _random = new Random();
         private readonly double _tableWidth;
         private readonly double _tableHeight;
         private readonly double _ballRadius;
 
-        public BallService(double tableWidth, double tableHeight, double ballRadius)
+        public BallManager(double tableWidth, double tableHeight, double ballRadius)
         {
             _tableWidth = tableWidth;
             _tableHeight = tableHeight;
             _ballRadius = ballRadius;
         }
 
-        public Ball CreateBall()
+        public IBall CreateBall()
         {
             double positionX = _ballRadius + _random.NextDouble() * (_tableWidth - 2 * _ballRadius);
             double positionY = _ballRadius + _random.NextDouble() * (_tableHeight - 2 * _ballRadius);
@@ -26,7 +29,7 @@ namespace Logic
             float velocityX = (float) ((_random.NextDouble() * 100) - 50);
             float velocityY = (float) ((_random.NextDouble() * 100) - 50);
 
-            Ball ball = new Ball
+            IBall ball = new Ball
             {
                 Id = _balls.Count + 1,
                 PositionX = positionX,
@@ -37,6 +40,17 @@ namespace Logic
             
             _balls.Add(ball);
             return ball;
+        }
+
+        public bool RemoveBall(int id)
+        {
+            var ballToRemove = _balls.Find(ball => ball.Id == id);
+            if (ballToRemove != null)
+            {
+                _balls.Remove(ballToRemove);
+                return true;
+            }
+            return false;
         }
 
         public void UpdateBalls(double deltaTime)
@@ -69,7 +83,7 @@ namespace Logic
             }
         }
 
-        public List<Ball> GetBalls()
+        public List<IBall> GetBalls()
         {
             return _balls;
         }

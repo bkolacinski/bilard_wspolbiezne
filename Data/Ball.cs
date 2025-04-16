@@ -2,9 +2,6 @@
 
 namespace Data
 {
-    /// <summary>
-    /// Implementation of IBall used in the Logic layer.
-    /// </summary>
     public class Ball : IBall
     {
         public int Id { get; set; }
@@ -21,6 +18,7 @@ namespace Data
         {
             PositionX += Velocity.X * deltaTime;
             PositionY += Velocity.Y * deltaTime;
+            System.Diagnostics.Debug.WriteLine($"Ball {Id} moved to: {PositionX:F2}, {PositionY:F2}");
         }
     }
 }

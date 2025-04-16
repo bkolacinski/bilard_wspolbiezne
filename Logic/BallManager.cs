@@ -1,11 +1,9 @@
-﻿using System.Numerics;
+﻿using System.Diagnostics;
+using System.Numerics;
 using Data;
 
 namespace Logic
 {
-    /// <summary>
-    /// Implementation of IBallManager used in Logic layer.
-    /// </summary>
     public class BallManager : IBallManager
     {
         private readonly List<IBall> _balls = new List<IBall>();
@@ -58,27 +56,32 @@ namespace Logic
             foreach (var ball in _balls)
             {
                 ball.Move(deltaTime);
+                Debug.WriteLine($"BallManager.UpdateBalls: Ball {ball.Id} moved to ({ball.PositionX:F2},{ball.PositionY:F2})");
 
+                // Left collision
                 if (ball.PositionX < _ballRadius)
                 {
                     ball.PositionX = _ballRadius;
-                    ball.Velocity = new Vector2(-ball.Velocity.X, ball.Velocity.Y);
+                    ball.Velocity = ball.Velocity with { X = -ball.Velocity.X };
                 }
-                else if (ball.PositionX > _ballRadius + _tableWidth)
+                // Right collision
+                else if (ball.PositionX > _tableWidth - _ballRadius)
                 {
                     ball.PositionX = _tableWidth - _ballRadius;
-                    ball.Velocity = new Vector2(-ball.Velocity.X, ball.Velocity.Y);
+                    ball.Velocity = ball.Velocity with { X = -ball.Velocity.X };
                 }
 
+                // Top collision
                 if (ball.PositionY < _ballRadius)
                 {
                     ball.PositionY = _ballRadius;
-                    ball.Velocity = new Vector2(ball.Velocity.X, -ball.Velocity.Y);
+                    ball.Velocity = ball.Velocity with { Y = -ball.Velocity.Y };
                 }
-                else if (ball.PositionY > _ballRadius + _tableHeight)
+                // Bottom collision
+                else if (ball.PositionY > _tableHeight - _ballRadius)
                 {
                     ball.PositionY = _tableHeight - _ballRadius;
-                    ball.Velocity = new Vector2(ball.Velocity.X, -ball.Velocity.Y);
+                    ball.Velocity = ball.Velocity with { Y = -ball.Velocity.Y };
                 }
             }
         }

@@ -3,14 +3,48 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:View"
+        xmlns:vm="clr-namespace:ViewModel;assembly=ViewModel"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Border Background="SaddleBrown" Padding="15">
-        <Border Background="#355E3B" CornerRadius="5">
-            <Grid>
-                
-            </Grid>
+        Title="Pool Table" Height="500" Width="1100"
+        MinHeight="500" MinWidth="1100">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" BorderBrush="SaddleBrown" BorderThickness="15" Margin="10" CornerRadius="5"
+                VerticalAlignment="Top">
+            <Canvas Name="tableCanvas" Background="ForestGreen" ClipToBounds="True"
+                    Width="800" Height="400">
+                <ItemsControl ItemsSource="{Binding Balls}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <Canvas />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemContainerStyle>
+                        <Style TargetType="ContentPresenter">
+                            <Setter Property="Canvas.Left" Value="{Binding CanvasLeft}" />
+                            <Setter Property="Canvas.Top" Value="{Binding CanvasTop}" />
+                        </Style>
+                    </ItemsControl.ItemContainerStyle>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Ellipse Fill="White" Stroke="Black" StrokeThickness="1"
+                                     Width="{Binding Diameter}"
+                                     Height="{Binding Diameter}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Canvas>
         </Border>
-    </Border>
+        
+        <StackPanel Grid.Column="1" Margin="10">
+            <Label Content="Number of Balls:" />
+            <TextBox Text="{Binding BallCountInput, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10" />
+            <Button Content="Start Simulation" Command="{Binding StartCommand}" Margin="0,0,0,5" IsEnabled="{Binding CanStart}"/>
+            <Button Content="Stop Simulation" Command="{Binding StopCommand}" Margin="0,0,0,5" IsEnabled="{Binding CanStop}"/>
+        </StackPanel>
+    </Grid>
 </Window>

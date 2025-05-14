@@ -14,6 +14,10 @@ namespace Data
         
         public double BallRadius { get; set; }
         
+        public double Mass { get; }
+        
+        public string Color { get; set; }
+        
         public void Move(double deltaTime);
     }
 }

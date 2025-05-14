@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Data;
+using Model;
 
 namespace ViewModel
 {
@@ -11,8 +12,9 @@ namespace ViewModel
         private readonly double _ballRadius;
 
         public int Id { get; }
+        public string Color { get; }
 
-        private double PositionX
+        public double PositionX
         {
             get => _positionX;
             set
@@ -23,7 +25,7 @@ namespace ViewModel
             }
         }
 
-        private double PositionY
+        public double PositionY
         {
             get => _positionY;
             set
@@ -38,7 +40,10 @@ namespace ViewModel
         public double CanvasTop => PositionY - BallRadius;
         
         private double BallRadius => _ballRadius;
-        public double Diameter => _ballRadius * 2;
+        public double Diameter
+        {
+            get => _ballRadius * 2;
+        }
 
         public BallViewModel(IBall ball)
         {
@@ -46,6 +51,16 @@ namespace ViewModel
             _ballRadius = ball.BallRadius;
             _positionX = ball.PositionX;
             _positionY = ball.PositionY;
+            Color = ball.Color;
+        }
+        
+        public BallViewModel(BallModel model)
+        {
+            Id = model.Id;
+            _ballRadius = model.BallRadius;
+            PositionX = model.PositionX;
+            PositionY = model.PositionY;
+            Color = model.Color;
         }
 
         public void Update(IBall ball)

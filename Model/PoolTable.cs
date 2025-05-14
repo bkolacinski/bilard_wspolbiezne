@@ -1,7 +1,5 @@
 ﻿using Logic;
 using Data;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace Model
 {
@@ -20,18 +18,19 @@ namespace Model
             BallManager = ballManager;
         }
 
-        public void Update(double deltaTime)
+        public async Task Update(double deltaTime)
         {
-            BallManager.UpdateBalls(deltaTime);
+            await BallManager.UpdateBalls(deltaTime);
         }
         
-        public List<BallModel> GetBallModels()
+        public async Task<List<BallModel>> GetBallModels()
         {
-            return BallManager.GetBalls()
+            var balls = await BallManager.GetBalls(); // Added await
+            return balls
                 .Select(ball => new BallModel(ball))
                 .ToList();
         }
 
-        public IBall AddBall() => BallManager.CreateBall();
+        public async Task<IBall> AddBall() => await BallManager.CreateBall();
     }
 }

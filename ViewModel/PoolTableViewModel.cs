@@ -1,7 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -13,15 +12,15 @@ namespace ViewModel
     public class PoolTableViewModel : INotifyPropertyChanged, IDisposable
     {
         private readonly PoolTable _poolTable;
-        private string _ballCountInput = "5";
+        private string _ballCountInput = "50";
         private bool _isRunning;
-        private Dictionary<int, BallViewModel> _ballViewModelMap = new Dictionary<int, BallViewModel>();
-        private readonly Stopwatch _stopwatch = new Stopwatch();
+        private Dictionary<int, BallViewModel> _ballViewModelMap = new();
+        private readonly Stopwatch _stopwatch = new();
         private double _lastFrameTime;
         private readonly DispatcherTimer _renderTimer;
         private bool _isDisposed;
 
-        public ObservableCollection<BallViewModel> Balls { get; } = new ObservableCollection<BallViewModel>();
+        public ObservableCollection<BallViewModel> Balls { get; } = new();
 
         public string BallCountInput
         {
@@ -61,35 +60,29 @@ namespace ViewModel
             CompositionTarget.Rendering += OnRendering;
         }
 
-        private void ExecuteStart()
+        private async void ExecuteStart()
         {
             if (!int.TryParse(BallCountInput, out int ballCount) || ballCount <= 0)
                 return;
 
             _isRunning = true;
-
+            
             Balls.Clear();
             _ballViewModelMap.Clear();
-            _poolTable.BallManager.GetBalls().Clear();
+            await _poolTable.BallManager.RemoveAllBalls();
 
-            Random random = new Random();
+            List<Task> ballCreationTasks = new List<Task>();
             for (int i = 0; i < ballCount; i++)
             {
-                var ball = _poolTable.AddBall();
-                
-                double speed = 50.0 + random.NextDouble() * 100.0;
-                double angle = random.NextDouble() * Math.PI * 2;
-                ball.Velocity = new Vector2(
-                    (float)(speed * Math.Cos(angle)),
-                    (float)(speed * Math.Sin(angle))
-                );
+                ballCreationTasks.Add(_poolTable.AddBall());
             }
+            await Task.WhenAll(ballCreationTasks);
+            
+            var ballModels = await _poolTable.GetBallModels();
 
-            var logicBalls = _poolTable.BallManager.GetBalls();
-
-            foreach (var logicBall in logicBalls)
+            foreach (BallModel ballModel in ballModels) 
             {
-                var ballViewModel = new BallViewModel(logicBall);
+                var ballViewModel = new BallViewModel(ballModel);
                 Balls.Add(ballViewModel);
                 _ballViewModelMap.Add(ballViewModel.Id, ballViewModel);
             }
@@ -100,13 +93,13 @@ namespace ViewModel
             ((RelayCommand)StopCommand).RaiseCanExecuteChanged();
         }
 
-        private void ExecuteStop()
+        private async void ExecuteStop()
         {
             _isRunning = false;
             Balls.Clear();
             _ballViewModelMap.Clear();
             
-            _poolTable.BallManager.GetBalls().Clear();
+            await _poolTable.BallManager.RemoveAllBalls();
 
             OnPropertyChanged(nameof(CanStart));
             OnPropertyChanged(nameof(CanStop));
@@ -128,21 +121,24 @@ namespace ViewModel
             Update(deltaTime);
         }
 
-        private void Update(double deltaTime)
+        private async void Update(double deltaTime)
         {
             if (!_isRunning) return;
             
-            _poolTable.Update(deltaTime);
+            await _poolTable.Update(deltaTime);
             
-            var logicBalls = _poolTable.BallManager.GetBalls();
-            
-            foreach (var logicBall in logicBalls)
+            var logicBalls = await _poolTable.BallManager.GetBalls();
+            if (logicBalls != null)
             {
-                if (_ballViewModelMap.TryGetValue(logicBall.Id, out var ballViewModel))
+                foreach (var logicBall in logicBalls)
                 {
-                    ballViewModel.Update(logicBall);
+                    if (_ballViewModelMap.TryGetValue(logicBall.Id, out var ballViewModel))
+                    {
+                        ballViewModel.Update(logicBall);
+                    }
                 }
             }
+
         }
 
         public void Dispose()

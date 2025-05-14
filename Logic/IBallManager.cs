@@ -4,12 +4,14 @@ namespace Logic
 {
     public interface IBallManager
     {
-        IBall CreateBall();
+        Task<IBall> CreateBall();
         
-        bool RemoveBall(int id);
+        Task<bool> RemoveBall(int id);
         
-        void UpdateBalls(double deltaTime);
+        Task UpdateBalls(double deltaTime);
         
-        List<IBall> GetBalls();
+        Task<List<IBall>> GetBalls();
+        
+        Task RemoveAllBalls();
     }
 }

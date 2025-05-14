@@ -38,8 +38,9 @@ namespace ViewModel
 
         public double CanvasLeft => PositionX - BallRadius;
         public double CanvasTop => PositionY - BallRadius;
-        
+
         private double BallRadius => _ballRadius;
+
         public double Diameter
         {
             get => _ballRadius * 2;
@@ -53,7 +54,7 @@ namespace ViewModel
             _positionY = ball.PositionY;
             Color = ball.Color;
         }
-        
+
         public BallViewModel(BallModel model)
         {
             Id = model.Id;

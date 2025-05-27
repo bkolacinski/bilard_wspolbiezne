@@ -54,7 +54,6 @@ public class BallTest
             BallRadius = 2.0,
             Color = "Red"
         };
-        ball.UpdateMass();
         double expectedMass = Math.Pow(2.0, 3);
         
         Assert.AreEqual(1, ball.Id);

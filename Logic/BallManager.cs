@@ -1,7 +1,6 @@
 ﻿using System.Numerics;
 using Data;
 
-
 namespace Logic
 {
     public class BallManager : IBallManager
@@ -13,12 +12,15 @@ namespace Logic
         private readonly double _tableHeight;
         private readonly double _ballRadius;
         private static int _nextBallId;
+        private readonly IDiagnosticLogger _logger; // Added logger field
 
-        public BallManager(double tableWidth, double tableHeight, double ballRadius)
+        // Updated constructor to accept IDiagnosticLogger
+        public BallManager(double tableWidth, double tableHeight, double ballRadius, IDiagnosticLogger logger)
         {
             _tableWidth = tableWidth;
             _tableHeight = tableHeight;
             _ballRadius = ballRadius;
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger)); // Ensure logger is not null
         }
 
         public async Task<IBall> CreateBall()
@@ -28,14 +30,14 @@ namespace Logic
             double positionY = initialRadius + _random.NextDouble() * (_tableHeight - 2 * initialRadius);
 
             const double velocityConst = 100.0;
-            
+
             float velocityX = (float)(_random.NextDouble() * 2 * velocityConst - velocityConst);
             float velocityY = (float)(_random.NextDouble() * 2 * velocityConst - velocityConst);
 
             var colorBytes = new byte[3];
             _random.NextBytes(colorBytes);
             string randomColor = $"#{BitConverter.ToString(colorBytes).Replace("-", "")}";
-            
+
             IBall ball = new Ball
             {
                 Id = Interlocked.Increment(ref _nextBallId),
@@ -50,6 +52,7 @@ namespace Logic
             try
             {
                 _balls.Add(ball);
+                await _logger.LogBallStateAsync(ball, "Created").ConfigureAwait(false);
             }
             finally
             {
@@ -60,62 +63,85 @@ namespace Logic
 
         public async Task<bool> RemoveBall(int id)
         {
+            IBall? ballToRemove = null;
             await _ballsSemaphore.WaitAsync();
             try
             {
-                var ballToRemove = _balls.Find(ball => ball.Id == id);
+                ballToRemove = _balls.Find(ball => ball.Id == id);
                 if (ballToRemove != null)
                 {
                     _balls.Remove(ballToRemove);
-                    return true;
                 }
-                return false;
             }
             finally
             {
                 _ballsSemaphore.Release();
             }
+
+            if (ballToRemove != null)
+            {
+                await _logger.LogBallStateAsync(ballToRemove, "Removed").ConfigureAwait(false);
+                return true;
+            }
+            return false;
         }
 
         public async Task UpdateBalls(double deltaTime)
         {
+            if (deltaTime <= 0) return;
+
             await _ballsSemaphore.WaitAsync();
             try
             {
                 if (!_balls.Any()) return;
-                
-                List<IBall> currentBalls = new List<IBall>(_balls);
+
+                List<IBall> currentBalls = new List<IBall>(_balls); // Work on a copy
                 foreach (var ball in currentBalls)
                 {
                     ball.Move(deltaTime);
                 }
 
-                await HandleBallCollisions(currentBalls);
+                await HandleBallCollisions(currentBalls).ConfigureAwait(false);
 
                 foreach (var ball in currentBalls)
                 {
                     double currentBallRadius = ball.BallRadius;
+                    bool wallCollisionOccurred = false;
+                    string wallSide = string.Empty;
 
                     if (ball.PositionX < currentBallRadius)
                     {
                         ball.PositionX = currentBallRadius;
                         ball.Velocity = ball.Velocity with { X = -ball.Velocity.X };
+                        wallCollisionOccurred = true;
+                        wallSide = "Left";
                     }
                     else if (ball.PositionX > _tableWidth - currentBallRadius)
                     {
                         ball.PositionX = _tableWidth - currentBallRadius;
                         ball.Velocity = ball.Velocity with { X = -ball.Velocity.X };
+                        wallCollisionOccurred = true;
+                        wallSide = "Right";
                     }
 
                     if (ball.PositionY < currentBallRadius)
                     {
                         ball.PositionY = currentBallRadius;
                         ball.Velocity = ball.Velocity with { Y = -ball.Velocity.Y };
+                        wallCollisionOccurred = true;
+                        wallSide = string.IsNullOrEmpty(wallSide) ? "Top" : $"{wallSide} & Top";
                     }
                     else if (ball.PositionY > _tableHeight - currentBallRadius)
                     {
                         ball.PositionY = _tableHeight - currentBallRadius;
                         ball.Velocity = ball.Velocity with { Y = -ball.Velocity.Y };
+                        wallCollisionOccurred = true;
+                        wallSide = string.IsNullOrEmpty(wallSide) ? "Bottom" : $"{wallSide} & Bottom";
+                    }
+
+                    if (wallCollisionOccurred)
+                    {
+                        await _logger.LogWallCollisionAsync(ball, wallSide).ConfigureAwait(false);
                     }
                 }
             }
@@ -141,7 +167,6 @@ namespace Logic
             }
         }
 
-        // Kopia stanu piłki, przydatna przy kolizjach
         private readonly struct BallSnapshot
         {
             public readonly Vector2 Position;
@@ -172,13 +197,13 @@ namespace Logic
 
                     Vector2 pos1 = new Vector2((float)ball1.PositionX, (float)ball1.PositionY);
                     Vector2 pos2 = new Vector2((float)ball2.PositionX, (float)ball2.PositionY);
-                    
+
                     float distanceSquared = (pos2 - pos1).LengthSquared();
                     float totalRadius = (float)(ball1.BallRadius + ball2.BallRadius);
 
                     if (distanceSquared <= totalRadius * totalRadius)
                     {
-                        if (Vector2.Dot(ball1.Velocity - ball2.Velocity, pos1 - pos2) < 0) 
+                        if (Vector2.Dot(ball1.Velocity - ball2.Velocity, pos1 - pos2) < 0)
                         {
                             var pairKey = ball1.Id < ball2.Id
                                 ? Tuple.Create(ball1.Id, ball2.Id)
@@ -188,17 +213,25 @@ namespace Logic
                                 var ball1Snapshot = new BallSnapshot(ball1);
                                 var ball2Snapshot = new BallSnapshot(ball2);
                                 collisionTasks.Add(
-                                    Task.Run(() => CalculateNewVelocities(ball1Snapshot, ball2Snapshot)));
+                                    Task.Run(async () =>
+                                    {
+                                        var result = CalculateNewVelocities(ball1Snapshot, ball2Snapshot);
+                                        if (result.HasValue)
+                                        {
+                                            await _logger.LogCollisionAsync(result.Value.Ball1, result.Value.Ball2).ConfigureAwait(false);
+                                        }
+                                        return result;
+                                    }));
                             }
                         }
                     }
                 }
             }
 
-            var collisionResults = collisionTasks.Any() 
-                ? await Task.WhenAll(collisionTasks)
+            var collisionResults = collisionTasks.Any()
+                ? await Task.WhenAll(collisionTasks).ConfigureAwait(false)
                 : Array.Empty<CollisionCalculationResult?>();
-                
+
             var newVelocitiesMap = new Dictionary<int, Vector2>();
             foreach (var result in collisionResults)
             {
@@ -209,7 +242,7 @@ namespace Logic
                     newVelocitiesMap[res.Ball2.Id] = res.NewVelocity2;
                 }
             }
-            
+
             foreach (var ball in ballsToProcess)
             {
                 if (newVelocitiesMap.TryGetValue(ball.Id, out var newVel))
@@ -234,10 +267,10 @@ namespace Logic
 
             Vector2 velDiff = vel1 - vel2;
             float dotProduct = Vector2.Dot(velDiff, posDiff);
-    
+
             float scalar1 = 2 * m2 / (m1 + m2) * (dotProduct / distSq);
             float scalar2 = 2 * m1 / (m1 + m2) * (dotProduct / distSq);
-    
+
             Vector2 newVel1 = vel1 - scalar1 * posDiff;
             Vector2 newVel2 = vel2 + scalar2 * posDiff;
 
@@ -256,17 +289,24 @@ namespace Logic
                 _ballsSemaphore.Release();
             }
         }
-        
+
         public async Task RemoveAllBalls()
         {
+            List<IBall> ballsToRemove;
             await _ballsSemaphore.WaitAsync();
             try
             {
+                ballsToRemove = new List<IBall>(_balls);
                 _balls.Clear();
             }
             finally
             {
                 _ballsSemaphore.Release();
+            }
+
+            foreach (var ball in ballsToRemove)
+            {
+                await _logger.LogBallStateAsync(ball, "RemovedDueToClearAll").ConfigureAwait(false);
             }
         }
     }
